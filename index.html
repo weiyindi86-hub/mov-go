@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全自动智能影视聚合系统</title>
+    <!-- 核心配置：完美绕过部分资源站的图片防盗链，确保海报100%成功显示 -->
+    <meta name="referrer" content="no-referrer">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #141414; color: #fff; margin: 0; padding: 0; }
+        
+        /* 顶部导航栏样式 */
+        header { background: #000; padding: 15px 20px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+        .nav-container { max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; }
+        .logo { font-size: 22px; font-weight: bold; color: #e50914; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 5px; }
+        
+        .nav-tabs { display: flex; gap: 8px; }
+        .tab-btn { background: #262626; color: #ccc; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+        .tab-btn.active, .tab-btn:hover { background: #e50914; color: #fff; }
+        
+        /* 线路切换器 */
+        .source-select { background: #262626; color: #fff; border: 1px solid #444; padding: 7px 10px; border-radius: 4px; font-size: 13px; outline: none; cursor: pointer; }
+        
+        .search-box { display: flex; gap: 6px; }
+        .search-box input { background: #262626; border: 1px solid #444; color: #fff; padding: 8px 12px; border-radius: 4px; outline: none; width: 180px; font-size: 14px; }
+        .search-box button { background: #e50914; color: #fff; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        
+        main { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        
+        /* 全能超级播放舱 */
+        #player-wrapper { display: none; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #2d2d2d; }
+        .player-header { background: #1a1a1a; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d2d2d; }
+        .player-header h3 { margin: 0; font-size: 15px; color: #e50914; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+        .player-controls { display: flex; align-items: center; gap: 12px; }
+        .player-controls select { background: #333; color: #fff; border: none; padding: 4px 8px; border-radius: 3px; font-size: 12px; cursor: pointer; }
+        .close-btn { background: none; border: none; color: #999; font-size: 18px; cursor: pointer; }
+        .close-btn:hover { color: #fff; }
+        .iframe-container { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
+        .iframe-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+        
+        /* 海报网格瀑布流 */
+        #movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 18px; }
+        .movie-card { background: #1a1a1a; border-radius: 6px; overflow: hidden; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; position: relative; border: 1px solid #222; }
+        .movie-card:hover { transform: translateY(-5px); box-shadow: 0 6px 15px rgba(0,0,0,0.6); border-color: #444; }
+        .poster-box { width: 100%; padding-top: 142%; position: relative; background: #262626; }
+        .poster-box img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        .tag-note { position: absolute; top: 6px; right: 6px; background: rgba(229,9,20,0.9); font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+        .movie-info { padding: 10px; }
+        .movie-info p { margin: 0; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; color: #eee; }
+        
+        .status-center { text-align: center; padding: 40px 0; font-size: 15px; color: #999; width: 100%; grid-column: 1 / -1; }
+        
+        @media (max-width: 600px) {
+            .nav-container { justify-content: center; }
+            .search-box input { width: 140px; }
+            #movie-grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部聚合控制中心 -->
+    <header>
+        <div class="nav-container">
+            <a class="logo" onclick="switchCategory('')">🎬 智能全自动流媒体</a>
+            
+            <!-- 影视多线API池配置 -->
+            <select id="api-selector" class="source-select" onchange="switchSource()">
+                <option value="https://lziapi.com">📡 高清主线 (量子源)</option>
+                <option value="https://77zyku.com">📡 极速备用 (七七源)</option>
+                <option value="https://8zyku.com">📡 海外加速 (八戒源)</option>
+            </select>
+
+            <div class="nav-tabs">
+                <button class="tab-item active" onclick="switchCategory('')">最新</button>
+                <button class="tab-item" onclick="switchCategory('movie')">电影</button>
+                <button class="tab-item" onclick="switchCategory('tv')">连续剧</button>
+                <button class="tab-item" onclick="switchCategory('variety')">综艺</button>
+                <button class="tab-item" onclick="switchCategory('anime')">动漫</button>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="search-bar" placeholder="找片名、主演、导演..." onkeydown="if(event.keyCode==13) execSearch()">
+                <button onclick="execSearch()">搜索</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- 视频超清解码播放模块 -->
+        <div id="player-wrapper">
+            <div class="player-header">
+                <h3 id="current-play-title">智能流媒体通道架设中...</h3>
+                <div class="player-controls">
+                    <!-- 播放器解析引擎切换池 -->
+                    <select id="engine-selector" onchange="changePlayEngine()">
+                        <option value="https://xmflv.cc">⚡ 纯净引擎 (无广告)</option>
+                        <option value="https://jsonplayer.com">⚡ 备用引擎 (兼容强)</option>
+                        <option value="https://aidouer.net">⚡ 备用引擎 (极速)</option>
+                    </select>
+                    <button class="close-btn" onclick="destroyPlayer()">✕ 关闭</button>
+                </div>
+            </div>
+            <div class="iframe-container">
+                <iframe id="video-core-engine" src="" allowfullscreen></iframe>
+            </div>
+        </div>
+
+        <!-- 异步交互网格 -->
+        <div id="movie-grid">
+            <div id="global-status" class="status-center">系统正在无缝握手分布式采集中心...</div>
+        </div>
+    </main>
+
+    <script>
+        // 本地状态管理器
+        let activeApi = document.getElementById('api-selector').value;
+        let activeEngine = document.getElementById('engine-selector').value;
+        let currentType = '';
+        let kwSearch = '';
+        let lastRawUrl = ''; 
+
+        // 核心功能1：异步数据吞吐引擎
+        async function runDataSync() {
+            const grid = document.getElementById('movie-grid');
+            const status = document.getElementById('global-status');
+            status.style.display = 'block';
+            status.innerText = '正在全自动同步分布式节点最新院线资源...';
+            
+            // 清理上一批Dom节点防止堆栈内存泄漏
+            grid.querySelectorAll('.movie-card').forEach(card => card.remove());
+
+            // 动态构建底层采集站请求
+            let queryUrl = activeApi;
+            if (kwSearch) {
+                queryUrl += `&wd=${encodeURIComponent(kwSearch)}`;
+            } else if (currentType) {
+                // 根据各大标准规范转换类型字段标识符
+                let typeMap = { 'movie': '1', 'tv': '2', 'variety': '3', 'anime': '4' };
+                if(activeApi.includes('77zyku') || activeApi.includes('8zyku')) {
+                    typeMap = { 'movie': '电影', 'tv': '电视剧', 'variety': '综艺', 'anime': '动漫' };
+                }
+                queryUrl += `&t=${encodeURIComponent(typeMap[currentType])}`;
+            }
+
+            try {
+                const res = await fetch(queryUrl);
+                const result = await res.json();
+                status.style.display = 'none';
+                
+                if (!result.list || result.list.length === 0) {
+                    status.style.display = 'block';
+                    status.innerText = '未检索到有效流媒体切片，建议更换主线或换个词检索！';
+                    return;
+                }
+                injectGrid(result.list);
+            } catch (err) {
+                status.style.display = 'block';
+                status.innerText = '当前主线遭遇跨域安全策略拦截，请在上方切换“备用线”或“海外加速线”！';
+                console.error(err);
+            }
+        }
+
+        // 核心功能2：多源链接解包与DOM构造
+        function injectGrid(list) {
+            const grid = document.getElementById('movie-grid');
+            
+            list.forEach(item => {
+                // 深度解析不同CMS格式下的万能切片规则
+                let streamUrl = '';
+                if (item.vod_play_url) {
+                    const group = item.vod_play_url.split('$$$');
+                    const eps = group[0].split('#');
+                    const urlMatrix = eps[0].split('$');
+                    streamUrl = urlMatrix.length > 1 ? urlMatrix[1] : urlMatrix[0];
+                }
+
+                const card = document.createElement('div');
+                card.className = 'movie-card';
+                card.innerHTML = `
+                    <div class="poster-box">
+                        <img src="${item.vod_pic}" alt="poster" onerror="this.src='https://placeholder.com'">
+                        <div class="tag-note">${item.vod_remarks || '1080P'}</div>
